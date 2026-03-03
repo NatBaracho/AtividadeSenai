@@ -11,9 +11,9 @@
 
 ## 📋 Sobre o Projeto
 
-O **Banco C-Sharp** precisa de um sistema básico para gerenciar contas de clientes. Por exigência de segurança, qualquer saque acima de um valor específico ou que deixe a conta negativa deve disparar um **alerta de notificação**.
+O **Banco C-Sharp** precisa de um sistema básico para gerenciar contas de clientes. Por exigência de segurança, qualquer saque acima de **R$ 1.000** ou que utilize o limite extra deve disparar um **alerta de notificação**.
 
-Como o canal de envio pode variar (e-mail, SMS, console), a solução utiliza **Delegates** para desacoplar o método de saque da função de notificação, permitindo flexibilidade total na implementação.
+Como o canal de envio pode variar (e-mail ou SMS), a solução utiliza **Delegates** para desacoplar o método de saque da função de notificação, permitindo flexibilidade total na implementação.
 
 ---
 
@@ -31,19 +31,21 @@ Como o canal de envio pode variar (e-mail, SMS, console), a solução utiliza **
 ## 🗂️ Estrutura do Projeto
 
 ```
-BancoCSharp/
-├── Program.cs              # Ponto de entrada e testes do sistema
-├── ContaBancaria.cs        # Classe principal com lógica de negócio
+ConsoleApp1/
+├── ContaBancaria.cs    # Classe com atributos, propriedades, construtor e métodos
+├── Program.cs          # Ponto de entrada com os testes do sistema
 └── README.md
 ```
 
 ---
 
-## 🔨 Passo a Passo da Implementação
+## 🔨 Implementação
 
-### Passo 1 — O Delegate
+### `ContaBancaria.cs`
 
-Declare o delegate `NotificacaoAlerta` fora ou dentro da classe principal. Ele não retorna nada (`void`) e recebe uma `string` com a mensagem de alerta:
+#### Passo 1 — O Delegate
+
+Declarado dentro da própria classe `ContaBancaria`, sem retorno e recebendo uma `string`:
 
 ```csharp
 public delegate void NotificacaoAlerta(string mensagem);
@@ -51,30 +53,23 @@ public delegate void NotificacaoAlerta(string mensagem);
 
 ---
 
-### Passo 2 — A Classe e Atributos
-
-Crie a classe `ContaBancaria` com os seguintes **atributos privados**:
+#### Passo 2 — Atributos Privados
 
 ```csharp
-public class ContaBancaria
-{
-    private string _titular;
-    private double _saldo;
-    private double _limiteExtra;
-}
+private string _titular;
+private double _saldo;
+private double _limiteExtra;
 ```
 
 ---
 
-### Passo 3 — Propriedades (Gets e Sets)
+#### Passo 3 — Propriedades
 
-Encapsule os atributos usando **Propriedades do C#**:
-
-| Propriedade    | Get     | Set     | Observação                                      |
-|----------------|---------|---------|--------------------------------------------------|
-| `Titular`      | público | público | Livre leitura e escrita                         |
-| `Saldo`        | público | privado | Alterado apenas por `Depositar` e `Sacar`       |
-| `LimiteExtra`  | público | público | Pode ser ajustado externamente                  |
+| Propriedade   | Get     | Set     | Observação                                                  |
+|---------------|---------|---------|-------------------------------------------------------------|
+| `Titular`     | público | público | Leitura e escrita livres                                    |
+| `Saldo`       | público | privado | Alterado apenas por `Depositar` e `Sacar`                   |
+| `LimiteExtra` | público | público | Valida que o valor não seja negativo; se for, define como 0 |
 
 ```csharp
 public string Titular
@@ -92,112 +87,152 @@ public double Saldo
 public double LimiteExtra
 {
     get { return _limiteExtra; }
-    set { _limiteExtra = value; }
+    set
+    {
+        if (value < 0)
+        {
+            _limiteExtra = 0;
+            Console.WriteLine("Erro: O limite extra não pode ser negativo.");
+        }
+        else
+        {
+            _limiteExtra = value;
+        }
+    }
 }
 ```
 
 ---
 
-### Passo 4 — Construtor
-
-Inicialize a conta com titular, saldo inicial e limite extra:
+#### Passo 4 — Construtor
 
 ```csharp
 public ContaBancaria(string titular, double saldoInicial, double limiteExtra)
 {
-    _titular   = titular;
-    _saldo     = saldoInicial;
-    _limiteExtra = limiteExtra;
+    Titular     = titular;
+    Saldo       = saldoInicial;
+    LimiteExtra = limiteExtra;
 }
 ```
 
 ---
 
-### Passo 5 — Métodos
+#### Passo 5 — Métodos
 
-#### `Depositar`
-Adiciona valor ao saldo (rejeita valores negativos):
+**`Depositar`** — Aceita apenas valores positivos:
 
 ```csharp
 public void Depositar(double valor)
 {
-    if (valor <= 0)
+    if (valor > 0)
     {
-        Console.WriteLine("Valor de depósito inválido.");
-        return;
+        Saldo += valor;
     }
-    Saldo += valor;
-    Console.WriteLine($"Depósito de R$ {valor:F2} realizado. Saldo atual: R$ {Saldo:F2}");
+    else
+    {
+        Console.WriteLine("Erro: o valor do depósito deve ser positivo.");
+    }
 }
 ```
 
-#### `Sacar`
-Realiza o saque e **aciona o delegate** de notificação quando necessário:
+**`Sacar`** — Recebe o delegate `NotificacaoAlerta` e dispara alerta quando o saque for acima de R$ 1.000 ou deixar o saldo negativo:
 
 ```csharp
-public void Sacar(double valor, NotificacaoAlerta notificacao)
+public void Sacar(double valor, NotificacaoAlerta alerta)
 {
-    double limiteTotal = _saldo + _limiteExtra;
-
     if (valor <= 0)
     {
-        Console.WriteLine("Valor de saque inválido.");
+        Console.WriteLine("Erro: o valor do saque deve ser positivo.");
         return;
     }
 
-    if (valor > limiteTotal)
+    if (Saldo + LimiteExtra >= valor)
     {
-        notificacao?.Invoke($"[ALERTA] Saque de R$ {valor:F2} NEGADO. Saldo insuficiente.");
-        return;
+        Saldo -= valor;
+
+        if (valor > 1000 || Saldo < 0)
+        {
+            alerta?.Invoke($"ALERTA: Saque de alto valor ou uso de limite detectado na conta de {Titular}.");
+        }
     }
-
-    Saldo -= valor;
-
-    if (Saldo < 0)
+    else
     {
-        notificacao?.Invoke($"[ALERTA] Saque de R$ {valor:F2} deixou a conta negativa! Saldo: R$ {Saldo:F2}");
+        Console.WriteLine("Erro: Saldo insuficiente para realizar o saque.");
     }
-
-    Console.WriteLine($"Saque de R$ {valor:F2} realizado. Saldo atual: R$ {Saldo:F2}");
 }
 ```
 
 ---
 
-### Passo 6 — Testando no `Program.cs`
+### `Program.cs`
+
+#### Passo 6 — Programa Principal
+
+Funções de notificação compatíveis com o delegate:
 
 ```csharp
-// Funções de notificação
-static void NotificarConsole(string mensagem) => Console.WriteLine(mensagem);
-static void NotificarSMS(string mensagem)     => Console.WriteLine($"[SMS] {mensagem}");
-static void NotificarEmail(string mensagem)   => Console.WriteLine($"[EMAIL] {mensagem}");
+public static void EnviarEmail(string msg)
+{
+    Console.WriteLine($"Enviando E-mail: {msg}");
+}
 
-// Uso
-ContaBancaria conta = new ContaBancaria("João Silva", 1000.00, 500.00);
+public static void EnviarSMS(string msg)
+{
+    Console.WriteLine($"Enviando SMS: {msg}");
+}
+```
 
-conta.Depositar(200);
-conta.Sacar(300, NotificarConsole);
-conta.Sacar(1500, NotificarSMS);    // deve disparar alerta
-conta.Sacar(900, NotificarEmail);   // pode deixar negativo — dispara alerta
+Testes realizados no `Main`:
+
+```csharp
+ContaBancaria conta = new ContaBancaria("Natã", 2000, 500);
+
+// Teste 1: Saque normal — sem alerta
+conta.Sacar(300, EnviarEmail);
+
+// Teste 2: Saque de alto valor — alerta via e-mail
+conta.Sacar(1500, EnviarEmail);
+
+// Teste 3: Saque que usa limite — alerta via SMS
+conta.Sacar(1000, EnviarSMS);
+```
+
+---
+
+## 🖥️ Saída Esperada no Console
+
+```
+Titular: Natã
+Saldo inicial: 2000
+Limite Extra: 500
+
+Saldo após saque: 1700
+
+Enviando E-mail: ALERTA: Saque de alto valor ou uso de limite detectado na conta de Natã.
+Saldo após saque: 200
+
+Enviando SMS: ALERTA: Saque de alto valor ou uso de limite detectado na conta de Natã.
+Saldo após saque: -800
 ```
 
 ---
 
 ## 💡 Conceitos Demonstrados
 
-| Conceito         | Onde é aplicado                                      |
-|------------------|------------------------------------------------------|
-| **Delegate**     | `NotificacaoAlerta` recebido pelo método `Sacar`     |
-| **Encapsulamento** | Atributos `private`, expostos por propriedades     |
-| **Propriedade**  | `Saldo` com `set` privado                            |
-| **Construtor**   | Inicialização dos campos da `ContaBancaria`          |
-| **Método**       | `Depositar` e `Sacar` com regras de negócio          |
+| Conceito             | Onde é aplicado                                              |
+|----------------------|--------------------------------------------------------------|
+| **Delegate**         | `NotificacaoAlerta` passado como parâmetro para `Sacar`      |
+| **Encapsulamento**   | Atributos `private`, expostos por propriedades               |
+| **Validação no Set** | `LimiteExtra` impede valores negativos                       |
+| **Set privado**      | `Saldo` só é alterado internamente pelos métodos da classe   |
+| **Construtor**       | Inicializa `Titular`, `Saldo` e `LimiteExtra`                |
+| **Métodos**          | `Depositar` e `Sacar` com regras de negócio                  |
 
 ---
 
 ## ▶️ Como Executar
 
-**Pré-requisitos:** [.NET SDK](https://dotnet.microsoft.com/download) instalado.
+**Pré-requisito:** [.NET SDK](https://dotnet.microsoft.com/download) instalado.
 
 ```bash
 # Clone o repositório
