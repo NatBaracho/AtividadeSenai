@@ -4,15 +4,17 @@ namespace ConsoleApp1
 {
     internal class ContaBancaria
     {
-        // Passo 1: Criar um delegate (void, recebe string)
+        #region Passo 1: Criar um delegate (void, recebe string)
         public delegate void NotificacaoAlerta(string mensagem);
+        #endregion
 
-        // Passo 2: Atributos privados
+        #region Passo 2: Atributos privados
         private string _titular;
         private double _saldo;
         private double _limiteExtra;
+        #endregion
 
-        // Passo 3: Propriedades (Gets e Sets)
+        #region Passo 3: Propriedades (Gets e Sets)
         public string Titular
         {
             get { return _titular; }
@@ -41,16 +43,17 @@ namespace ConsoleApp1
                 }
             }
         }
-
-        // Passo 4: Construtor
+        #endregion
+        #region Passo 4: Construtor
         public ContaBancaria(string titular, double saldoInicial, double limiteExtra)
         {
             Titular = titular;
             Saldo = saldoInicial;
             LimiteExtra = limiteExtra;
         }
+        #endregion
 
-        // Passo 5: Criando métodos
+        #region Passo 5: Criando métodos
         public void Depositar(double valor)
         {
             if (valor > 0)
@@ -86,5 +89,6 @@ namespace ConsoleApp1
                 Console.WriteLine("Erro: Saldo insuficiente para realizar o saque.");
             }
         }
+        #endregion
     }
 }
